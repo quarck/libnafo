@@ -2,3 +2,5 @@ auth.py
 tnotify.py
 storage
 credentials.txt
+.idea
+__pycache__
