@@ -1,5 +1,9 @@
+import random
+
 import requests
 import sys
+
+from decorator import append
 
 import auth
 import utils
@@ -191,7 +195,7 @@ class Twitter:
 
 		return None
 
-	def reply_publicly(self, session: requests.session, reply_to_tweet_id: str, reply: str, media: list=None):
+	def tweet(self, session: requests.session, reply_to_tweet_id: str, text: str = "", media: list = None):
 
 		requrl = "https://twitter.com:443/i/api/graphql/" + CREATE_TWEET_QUERY_ID +"/CreateTweet"
 
@@ -225,7 +229,7 @@ class Twitter:
 			"variables": {
 				"dark_request": False,
 				"media": {
-					"media_entities": [str(m) for m in media] if media is not None else [],
+					"media_entities": [{"media_id": str(m), "tagged_users": []} for m in media] if media is not None else [],
 					"possibly_sensitive": False
 				},
 				"reply": {
@@ -233,7 +237,7 @@ class Twitter:
 					"in_reply_to_tweet_id": str(reply_to_tweet_id),
 				},
 				"semantic_annotation_ids": [],
-				"tweet_text": reply,
+				"tweet_text": text,
 				"withDownvotePerspective": False,
 				"withReactionsMetadata": False,
 				"withReactionsPerspective": False
@@ -243,6 +247,7 @@ class Twitter:
 		try:
 			ret = session.post(requrl, headers=headers, json=reqdata, cookies=self.cookies)
 			if ret.status_code != 200:
+				print (ret.text)
 				return None
 
 			return ret.json()['data']['create_tweet']['tweet_results']['result']['legacy']['id_str']
@@ -252,6 +257,65 @@ class Twitter:
 
 		return None
 
+	def get_webkit_bundary_str(self, n = 13):
+		chars = [chr(i) for i in range(ord('a'), ord('z')+1)] + \
+				[chr(i) for i in range(ord('A'), ord('Z')+1)] + \
+				[chr(i) for i in range(ord('0'), ord('9')+1)]
+		ret = ""
+		for i in range(n):
+			ret = ret + chars[random.randint(0, len(chars)-1)]
+		return ret
+
+	def upload_image(self, session: requests.session, image: bytes, type: str):
+		len_bytes = len(image)
+
+		req_uri_INIT = "https://upload.twitter.com:443/i/media/upload.json?command=INIT&" + \
+					f"total_bytes={len_bytes}&media_type=image%2F{type}&media_category=tweet_image"
+
+		headers = self.common_headers.copy()
+		headers['Referer'] = "https://twitter.com/"
+
+		init_result = session.post(req_uri_INIT, headers=headers, cookies=self.cookies)
+
+		if init_result.status_code // 100 != 2:
+			return None
+
+		init_result = init_result.json()
+
+		media_id = init_result['media_id']
+		media_key = init_result['media_key']
+
+		## Then actual data!
+		req_uri_APPEND = f"https://upload.twitter.com:443/i/media/upload.json?command=APPEND&media_id={media_id}&segment_index=0"
+
+		boundary = self.get_webkit_bundary_str()
+
+		headers_post = headers.copy()
+		headers_post["Content-Type"] = f"multipart/form-data; boundary=----WebKitFormBoundaryJar{boundary}"
+
+		img_data = bytes(f"------WebKitFormBoundaryJar{boundary}\r\n" + \
+				   "Content-Disposition: form-data; name=\"media\"; filename=\"blob\"\r\n" + \
+				   "Content-Type: application/octet-stream\r\n" + \
+				   "\r\n", 'utf-8') + \
+				   img + \
+				   bytes(f"\r\n------WebKitFormBoundaryJar{boundary}--\r\n", 'utf-8')
+
+		append_result = session.post(req_uri_APPEND, headers=headers_post, cookies=self.cookies, data=img_data)
+
+		if append_result.status_code // 100 != 2:
+			return None
+
+		## Finalize now!
+
+		req_uri_FINALIZE = f"https://upload.twitter.com:443/i/media/upload.json?command=FINALIZE&media_id={media_id}"
+
+		finalize_result = session.post(req_uri_FINALIZE, headers=headers, cookies=self.cookies)
+
+		if finalize_result.status_code // 100 != 2:
+			return None
+
+		return media_id
+
 
 if __name__ == "__main__":
 
@@ -259,6 +323,21 @@ if __name__ == "__main__":
 
 	s = requests.Session()
 
-	for tw in t.get_user_recent_tweets(s, 'sdf'):
-		print (tw['id_str'])
-		print(tw.keys())
+	import image_noisifier as imn
+
+	img = imn.ImageNoisifier().noisify(r'c:\users\sergey\downloads\FtDIX-IWAAIpFag.jfif')
+
+	if img is None:
+		raise Exception("Failed to load img")
+
+	media_id = t.upload_image(s, img, "png")
+
+	if media_id is not None:
+		ret = t.tweet(s, text="ruzzia is a terrorist state", media=[media_id], reply_to_tweet_id="1644006694261866504")
+		print (ret)
+
+	#print (res.text, res.status_code)
+
+	#for tw in t.get_user_recent_tweets(s, 'qrck13'):
+	#	print (tw['id_str'], tw['full_text'] )
+		#print(tw.keys())

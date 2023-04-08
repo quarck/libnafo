@@ -110,7 +110,7 @@ class App:
 		he = post_history.HistoryEntry(id_str, 0, now, post_history.HistoryEntry.STATUS_NEW, reply_text)
 		self.history.insert(he)
 
-		reply_tw_id = self.twitter.reply_publicly(session, id_str, reply_text)
+		reply_tw_id = self.twitter.tweet(session, reply_to_tweet_id=id_str, text=reply_text)
 		if reply_tw_id is not None:
 			he.reply_tw_id = reply_tw_id
 			he.status = post_history.HistoryEntry.STATUS_REPLIED
