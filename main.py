@@ -16,14 +16,14 @@ import datetime
 
 
 class App:
-	def __init__(self, storage_path, target_user_id, target_user_name, stats_html):
+	def __init__(self, storage_path, target_user_name, stats_html):
 		self.history = post_history.History(os.path.join(storage_path, "history.db"))
 		self.twitter = twitter.Twitter(auth.auth_token, auth.ct0_token)
 
 		self.replies_db = replies.RepliesDB(os.path.join(storage_path, "replies"))
 
-		self.target_user_id = target_user_id
 		self.target_user_name = target_user_name
+		self.target_user_id = self.twitter.get_user_id(requests.Session(), target_user_name)
 
 		self.fail_cnt = 0
 
@@ -66,7 +66,6 @@ class App:
 	def seed_db(self):
 		tweets = self.twitter.get_user_recent_tweets(
 			requests.session(),
-			self.target_user_id,
 			self.target_user_name
 		)
 
@@ -84,7 +83,6 @@ class App:
 
 		tweets = self.twitter.get_user_recent_tweets(
 			session,
-			self.target_user_id,
 			self.target_user_name
 		)
 
@@ -167,7 +165,7 @@ class App:
 
 def main():
 	try:
-		app = App("./storage", 1640386643797393408, "mallacewick", "/dev/null")
+		app = App("./storage", "mallacewick", "/dev/null")
 		app.run()
 	except KeyboardInterrupt as ke:
 		print("terminating!")

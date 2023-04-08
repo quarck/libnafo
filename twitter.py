@@ -1,16 +1,19 @@
 import requests
 import sys
 
+import auth
 import utils
 from utils import find
+
+import time
 
 #
 # Twitter current constants, perhaps these change over time?
 #
 CREATE_TWEET_QUERY_ID="SL7Y6NjCx8o4NkEJP3Eb2A"
 GET_TWEETS_QUERY_ID="PoZUz38XdT-pXNk0FRfKSw"
+PROFILE_SPOTLIGHT_QUERY_ID = "9zwVLJ48lmVUk8u_Gh9DmA"
 API_AUTH_HEADER = "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs=1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA"
-
 
 class Twitter:
 
@@ -43,6 +46,8 @@ class Twitter:
 			"Accept-Language": "en-US,en-IE;q=0.9,en;q=0.8"
 		}
 
+		self.user_ids = {}
+
 	@staticmethod
 	def parse_twitter_entries(raw_entries):
 
@@ -51,18 +56,27 @@ class Twitter:
 		for re in raw_entries:
 
 			if re['content']['entryType'] == 'TimelineTimelineItem':
+
+				try:
+					tw_res = re['content']['itemContent']['tweet_results']['result']['legacy']['retweeted_status_result']['result']['legacy']
+					items.append(tw_res)
+					continue
+				except:
+					pass
+
 				try:
 					tw_res = re['content']['itemContent']['tweet_results']['result']['legacy']
-
-					if 'retweeted_status_result' in tw_res:
-						tw_res = tw_res['retweeted_status_result']['result']['legacy']
-						items.append(tw_res)
-					else:
-						items.append(tw_res)
-
+					items.append(tw_res)
+					continue
 				except:
-					print(find(re['content'], 'full_text'))
-					raise
+					pass
+
+				try:
+					tw_res = re['content']['itemContent']['tweet_results']['result']['tweet']['legacy']
+					items.append(tw_res)
+					continue
+				except:
+					pass
 
 			elif re['content']['entryType'] == 'TimelineTimelineModule':
 				# These don't seems to contain anything useful
@@ -75,20 +89,91 @@ class Twitter:
 
 		return items
 
-	def get_user_recent_tweets(self, session: requests.session, user_id: int, refer_username: str):
+	def get_user_id(self, session: requests.session, user_name: str):
 
-		# Has some twitter defauls encoded
-		requrl = "https://twitter.com:443/i/api/graphql/" + GET_TWEETS_QUERY_ID + \
-			"/UserTweets?variables=%7B%22userId%22%3A%22" + str(user_id) + \
-			"%22%2C%22count%22%3A40%2C%22includePromotedContent%22%3Atrue%2C%22withQuickPromoteEligibilityTweetFields%22%3Atrue%2C%22withDownvotePerspective%22%3Afalse%2C%22withReactionsMetadata%22%3Afalse%2C%22withReactionsPerspective%22%3Afalse%2C%22withVoice%22%3Atrue%2C%22withV2Timeline%22%3Atrue%7D&features=%7B%22responsive_web_twitter_blue_verified_badge_is_enabled%22%3Atrue%2C%22responsive_web_graphql_exclude_directive_enabled%22%3Atrue%2C%22verified_phone_label_enabled%22%3Afalse%2C%22responsive_web_graphql_timeline_navigation_enabled%22%3Atrue%2C%22responsive_web_graphql_skip_user_profile_image_extensions_enabled%22%3Afalse%2C%22tweetypie_unmention_optimization_enabled%22%3Atrue%2C%22vibe_api_enabled%22%3Atrue%2C%22responsive_web_edit_tweet_api_enabled%22%3Atrue%2C%22graphql_is_translatable_rweb_tweet_is_translatable_enabled%22%3Atrue%2C%22view_counts_everywhere_api_enabled%22%3Atrue%2C%22longform_notetweets_consumption_enabled%22%3Atrue%2C%22tweet_awards_web_tipping_enabled%22%3Afalse%2C%22freedom_of_speech_not_reach_fetch_enabled%22%3Afalse%2C%22standardized_nudges_misinfo%22%3Atrue%2C%22tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled%22%3Afalse%2C%22interactive_text_enabled%22%3Atrue%2C%22responsive_web_text_conversations_enabled%22%3Afalse%2C%22longform_notetweets_richtext_consumption_enabled%22%3Afalse%2C%22responsive_web_enhance_cards_enabled%22%3Afalse%7D"
+		if user_name in self.user_ids:
+			return self.user_ids[user_name]
 
+		params = {"screen_name": user_name}
+		params = requests.utils.quote(str(params).replace("'true'", 'true').replace("'false'", 'false').replace("'", '"'))
+
+		requrl = 'https://twitter.com/i/api/graphql/' + PROFILE_SPOTLIGHT_QUERY_ID + '/ProfileSpotlightsQuery?variables=' + params
 		headers = self.common_headers.copy()
-		headers['Referer'] = "https://twitter.com/" + refer_username
 
 		try:
 			ret = session.get(requrl, headers=headers, cookies=self.cookies)
 
 			if ret.status_code != 200:
+				return None
+
+			js = ret.json()
+			user_id = js['data']['user_result_by_screen_name']['result']['rest_id']
+			self.user_ids[user_name] = user_id
+
+			time.sleep(0.1)
+			return user_id
+
+		except Exception as ex:
+			print(ex, file=sys.stderr)
+
+		return None
+
+	def get_user_recent_tweets(self, session: requests.session, username: str):
+
+		true = "true"
+		false = "false"
+
+		user_id = self.get_user_id(session, username)
+		if user_id is None:
+			return None
+
+		params = {
+			"userId": str(user_id),
+			"count": 40,
+			"includePromotedContent": true,
+			"withQuickPromoteEligibilityTweetFields": true,
+			"withDownvotePerspective": false,
+			"withReactionsMetadata": false,
+			"withReactionsPerspective": false,
+			"withVoice": true,
+			"withV2Timeline": true
+			}
+
+
+		features = {
+			"responsive_web_twitter_blue_verified_badge_is_enabled": true,
+			"responsive_web_graphql_exclude_directive_enabled": true, "verified_phone_label_enabled": false,
+			"responsive_web_graphql_timeline_navigation_enabled": true,
+			"responsive_web_graphql_skip_user_profile_image_extensions_enabled": false,
+			"tweetypie_unmention_optimization_enabled": true, "vibe_api_enabled": true,
+			"responsive_web_edit_tweet_api_enabled": true,
+			"graphql_is_translatable_rweb_tweet_is_translatable_enabled": true,
+			"view_counts_everywhere_api_enabled": true, "longform_notetweets_consumption_enabled": true,
+			"tweet_awards_web_tipping_enabled": false, "freedom_of_speech_not_reach_fetch_enabled": false,
+			"standardized_nudges_misinfo": true,
+			"tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled": false,
+			"interactive_text_enabled": "true", "responsive_web_text_conversations_enabled": false,
+			"longform_notetweets_richtext_consumption_enabled": false, "responsive_web_enhance_cards_enabled": false
+		}
+
+		params = requests.utils.quote(
+			str(params).replace("'true'", 'true').replace("'false'", 'false').replace("'", '"'))
+
+		features = requests.utils.quote(
+			str(features).replace("'true'", 'true').replace("'false'", 'false').replace("'", '"'))
+
+		# Has some twitter defauls encoded
+		requrl = "https://twitter.com:443/i/api/graphql/" + GET_TWEETS_QUERY_ID + \
+			"/UserTweets?variables=" + params + "&features=" + features
+
+		headers = self.common_headers.copy()
+		headers['Referer'] = "https://twitter.com/" + username
+
+		try:
+			ret = session.get(requrl, headers=headers, cookies=self.cookies)
+
+			if ret.status_code != 200:
+				print(ret, ret.status_code)
 				return None
 
 			js = ret.json()
@@ -102,7 +187,7 @@ class Twitter:
 					return self.parse_twitter_entries(i['entries'])
 
 		except Exception as ex:
-			print(ex, file=sys.stderr)
+			print(ex, "sh", file=sys.stderr)
 
 		return None
 
@@ -166,3 +251,14 @@ class Twitter:
 			print(ex, file=sys.stderr)
 
 		return None
+
+
+if __name__ == "__main__":
+
+	t = Twitter(auth.auth_token, auth.ct0_token)
+
+	s = requests.Session()
+
+	for tw in t.get_user_recent_tweets(s, 'sdf'):
+		print (tw['id_str'])
+		print(tw.keys())
