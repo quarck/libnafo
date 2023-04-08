@@ -1,0 +1,17 @@
+import sys
+import urllib.request
+
+
+TG_API_TOKEN = "__YOUR_API_TOKEN_HERE__"
+
+TG_USER_ID = __YOUR_USER_ID_TO_SEND_NOTIFICATIONS_TO__ # Must be registered with the bot for which API tokey is
+
+BASE_URI = 'https://api.telegram.org/' + TG_API_TOKEN + '/sendMessage?%s'
+
+
+def notify(message: str):
+
+    params = urllib.parse.urlencode({'chat_id': TG_USER_ID, 'text': message})
+
+    with urllib.request.urlopen(BASE_URI % params) as f:
+        _ = f.read().decode('utf-8')

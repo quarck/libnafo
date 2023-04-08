@@ -1,0 +1,14 @@
+#
+# * Open Chrome, login into twitter (if not logged in)
+# * While having twitter Tab open, hit F12 on the keyboard to open the Dev Console 
+# * Open 'Application' Tab of the Dev Console 
+# * Under Storage -> Cookies locate https://twitter.com
+# * Copy the value of 'auth_token' coookie into 'auth_token' below 
+# * Copy the value of 'ct0' cookie into 'ct0_token' below
+# * Close the Dev Console 
+# 
+
+
+auth_token = "___AUTH_TOKEN___"
+
+ct0_token = "___CT0__TOKEN___"
