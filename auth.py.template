@@ -12,3 +12,11 @@
 auth_token = "___AUTH_TOKEN___"
 
 ct0_token = "___CT0__TOKEN___"
+
+
+#
+# TG Bot API token - if using Telegram Status Notifications
+# Can be left blank
+#
+tg_bot_api_token = ''
+tg_notify_user_id = 0
