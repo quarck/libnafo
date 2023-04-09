@@ -41,10 +41,7 @@ class ReplyImage:
         if img is None:
             raise Exception("Failed to load img " + self.path)
 
-        _, ext = os.path.splitext(self.path)
-        ext = ext[1:].lower()
-
-        media_id = t.upload_image(s, img, ext)
+        media_id = t.upload_image(s, img, 'png')
         if media_id is None:
             return None
 
