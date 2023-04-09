@@ -16,7 +16,7 @@ import datetime
 
 
 class App:
-	def __init__(self, storage_path, target_user_name, stats_html):
+	def __init__(self, storage_path, target_user_name, stats_html_file):
 		self.history = post_history.History(os.path.join(storage_path, "history.db"))
 		self.twitter = twitter.Twitter(auth.auth_token, auth.ct0_token)
 
@@ -27,7 +27,7 @@ class App:
 
 		self.fail_cnt = 0
 
-		self.stats_html = stats_html
+		self.stats_html_file = stats_html_file
 
 	def allowed_to_send(self):
 		now = utils.nownanos()
@@ -97,20 +97,26 @@ class App:
 			for tw in tweets:
 				prev_entry = self.history.get_by_id(tw['id_str'])
 				if prev_entry is None:
-					self.post_reply(session, tw['id_str'])
+					full_text = tw['full_text'] if 'full_text' in tw else ''
+					self.post_reply(session, tw['id_str'], full_text)
 					return # only do once at a time!
 
-	def post_reply(self, session, id_str):
+	def post_reply(self, session, id_str, text):
 		now = utils.nownanos()
 
-		reply_text = self.replies_db.random()
+		reply = self.replies_db.random(text)
 
-		print("Posting reply to the new tweet id ", id_str, "reply text", reply_text)
+		print("Posting reply to the new tweet id ", id_str, "reply text", str(reply))
 
-		he = post_history.HistoryEntry(id_str, 0, now, post_history.HistoryEntry.STATUS_NEW, reply_text)
+		he = post_history.HistoryEntry(id_str, 0, now, post_history.HistoryEntry.STATUS_NEW, str(reply))
 		self.history.insert(he)
 
-		reply_tw_id = self.twitter.tweet(session, reply_to_tweet_id=id_str, text=reply_text)
+		try:
+			reply_tw_id = reply.do_reply(self.twitter, session, id_str)
+		except Exception as ex:
+			print(ex, ex.__traceback__, file=sys.stderr)
+			reply_tw_id = None
+
 		if reply_tw_id is not None:
 			he.reply_tw_id = reply_tw_id
 			he.status = post_history.HistoryEntry.STATUS_REPLIED
@@ -135,7 +141,8 @@ class App:
 			time.sleep(60 * 2)
 
 	def update_stats_html(self):
-
+		if self.stats_html_file is None or self.stats_html_file == "":
+			return
 		try:
 			now = utils.nownanos()
 
@@ -156,7 +163,7 @@ class App:
 
 			html += "</body></html>"
 
-			with open(self.stats_html, "w+") as f:
+			with open(self.stats_html_file, "w+") as f:
 				f.write(html)
 
 		except Exception as ex:
@@ -164,14 +171,29 @@ class App:
 
 
 def main():
+
+	if len(sys.argv) < 3:
+		print("""Usage:
+python3 main.py <storage_folder> <twitter_username_to_watch> [html_status_file_to_update] 
+""")
+		return
+
+	storage = sys.argv[1]
+	tw_user = sys.argv[2]
+	html_status = sys.argv[3] if len(sys.argv) == 4 else None
+
+	print(f"Using storage folder {storage}, replying to user {tw_user}")
+	if html_status is not None:
+		print(f"Reporting stats into {html_status}")
+
 	try:
-		app = App("./storage", "mallacewick", "/dev/null")
+		app = App(storage, tw_user, html_status)
 		app.run()
 	except KeyboardInterrupt as ke:
 		print("terminating!")
 	except Exception as ex:
 		print(ex)
-		tnotify.notify(f"Wick-Mallace Bot has died with exception: {ex}")
+		tnotify.notify(f"ShitPoster bot instance {tw_user} Bot has died with exception: {ex}")
 
 
 if __name__ == "__main__":

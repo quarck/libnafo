@@ -297,7 +297,7 @@ class Twitter:
 				   "Content-Disposition: form-data; name=\"media\"; filename=\"blob\"\r\n" + \
 				   "Content-Type: application/octet-stream\r\n" + \
 				   "\r\n", 'utf-8') + \
-				   img + \
+				   image + \
 				   bytes(f"\r\n------WebKitFormBoundaryJar{boundary}--\r\n", 'utf-8')
 
 		append_result = session.post(req_uri_APPEND, headers=headers_post, cookies=self.cookies, data=img_data)
@@ -319,25 +319,4 @@ class Twitter:
 
 if __name__ == "__main__":
 
-	t = Twitter(auth.auth_token, auth.ct0_token)
-
-	s = requests.Session()
-
-	import image_noisifier as imn
-
-	img = imn.ImageNoisifier().noisify(r'c:\users\sergey\downloads\FtDIX-IWAAIpFag.jfif')
-
-	if img is None:
-		raise Exception("Failed to load img")
-
-	media_id = t.upload_image(s, img, "png")
-
-	if media_id is not None:
-		ret = t.tweet(s, text="ruzzia is a terrorist state", media=[media_id], reply_to_tweet_id="1644006694261866504")
-		print (ret)
-
-	#print (res.text, res.status_code)
-
-	#for tw in t.get_user_recent_tweets(s, 'qrck13'):
-	#	print (tw['id_str'], tw['full_text'] )
-		#print(tw.keys())
+	pass
