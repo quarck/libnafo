@@ -3,8 +3,6 @@ import random
 import requests
 import sys
 
-from decorator import append
-
 import auth
 import utils
 from utils import find
