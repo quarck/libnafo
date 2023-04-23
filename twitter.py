@@ -51,31 +51,40 @@ class Twitter:
 		self.user_ids = {}
 
 	@staticmethod
-	def parse_twitter_entries(raw_entries):
+	def parse_twitter_entries(username, raw_entries):
 
 		items = []
 
 		for re in raw_entries:
 
+			if re['entryId'].startswith('promotedTweet-'):
+				continue
+
+			if len(utils.find_value(re, username)) == 0:
+				# Also a promoted but sneaky tweet
+				continue
+
+			entry_id = re['entryId'][6:]
+
 			if re['content']['entryType'] == 'TimelineTimelineItem':
 
 				try:
 					tw_res = re['content']['itemContent']['tweet_results']['result']['legacy']['retweeted_status_result']['result']['legacy']
-					items.append(tw_res)
+					items.append((entry_id, tw_res, re))
 					continue
 				except:
 					pass
 
 				try:
 					tw_res = re['content']['itemContent']['tweet_results']['result']['legacy']
-					items.append(tw_res)
+					items.append((entry_id, tw_res, re))
 					continue
 				except:
 					pass
 
 				try:
 					tw_res = re['content']['itemContent']['tweet_results']['result']['tweet']['legacy']
-					items.append(tw_res)
+					items.append((entry_id, tw_res, re))
 					continue
 				except:
 					pass
@@ -186,7 +195,7 @@ class Twitter:
 
 			for i in instructions:
 				if i['type'] == 'TimelineAddEntries':
-					return self.parse_twitter_entries(i['entries'])
+					return self.parse_twitter_entries(username, i['entries'])
 
 		except Exception as ex:
 			print(ex, "sh", file=sys.stderr)
@@ -316,5 +325,17 @@ class Twitter:
 
 
 if __name__ == "__main__":
+	twitter = Twitter(auth.auth_token, auth.ct0_token)
+	target_user_id = twitter.get_user_id(requests.Session(), 'mfa_russia')
+	print (target_user_id)
 
-	pass
+	for entry_id, tw, tw_full in twitter.get_user_recent_tweets(
+		requests.session(),
+		'wallacemick'):
+
+		full_text = tw['full_text'] if 'full_text' in tw else ''
+
+		print()
+		print (entry_id, tw['id_str'], full_text) # , tw)
+		#print(tw_full)
+

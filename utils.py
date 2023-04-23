@@ -23,6 +23,24 @@ def find(obj, key, path=''):
 	return ret
 
 
+def find_value(obj, value, path=''):
+	ret = []
+	if type(obj) == list:
+		idx = 0
+		for c in obj:
+			ret.extend(find_value(c, value, path=path + f"['{idx}']"))
+			idx += 1
+
+	elif type(obj) == dict:
+		for c in obj.keys():
+			ret.extend(find_value(obj[c], value, path=path + f"['{c}']"))
+
+	elif obj == value:
+		ret.append(path)
+
+	return ret
+
+
 def nownanos():
 	return int((datetime.datetime.now() - datetime.datetime(1970, 1, 1, 0, 0, 0)).total_seconds() * 1e9)
 

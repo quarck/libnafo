@@ -73,8 +73,11 @@ class App:
 			raise Exception("Failed to seed the DB")
 
 		with self.history:
-			for tw in tweets:
-				self.history.insert(post_history.HistoryEntry(tw['id_str'], 0, 0, post_history.HistoryEntry.STATUS_IGNORED, ""))
+			for tw_id, tw, tw_full in tweets:
+				self.history.insert(post_history.HistoryEntry(tw_id, 0, 0, post_history.HistoryEntry.STATUS_IGNORED, ""))
+				if tw_id != tw['id_str']:
+					self.history.insert(post_history.HistoryEntry(tw['id_str'], 0, 0,
+																  post_history.HistoryEntry.STATUS_IGNORED, ""))
 
 	def iterate(self):
 		print("Iterating!")
@@ -94,9 +97,10 @@ class App:
 		self.on_fetch_result(True)
 
 		with self.history:
-			for tw in tweets:
+			for tw_id, tw, tw_full in tweets:
 				prev_entry = self.history.get_by_id(tw['id_str'])
-				if prev_entry is None:
+				prev_entry2 = self.history.get_by_id(tw_id) # would be different in case of retweet, 'id_str' points to the original tweet
+				if prev_entry is None and prev_entry2 is None:
 					full_text = tw['full_text'] if 'full_text' in tw else ''
 					self.post_reply(session, tw['id_str'], full_text)
 					return # only do once at a time!
