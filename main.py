@@ -109,6 +109,10 @@ class App:
 		now = utils.nownanos()
 
 		reply = self.replies_db.random(text)
+		if reply is None: 
+			he = post_history.HistoryEntry(id_str, 0, now, post_history.HistoryEntry.STATUS_NO_REPLY_FOUND, "No reply found")
+			self.history.insert(he)
+			return
 
 		print("Posting reply to the new tweet id ", id_str, "reply text", str(reply))
 

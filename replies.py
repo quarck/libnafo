@@ -69,7 +69,7 @@ class RepliesContainer:
 
     def random(self):
         if len(self.items) == 0:
-            raise Exception("not initialized")
+            return None
 
         if len(self.items) == 1:
             return self.items[0]
@@ -118,8 +118,8 @@ class RepliesDB:
             else:
                 raise Exception("Unrecognized reply type:" + full_name)
 
-        if len(items) == 0:
-            raise Exception("No items loaded from " + path)
+        #if len(items) == 0:
+        #    raise Exception("No items loaded from " + path)
 
         self.containers.append(RepliesContainer(items, keywords))
 

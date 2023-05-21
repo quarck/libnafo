@@ -8,6 +8,7 @@ class HistoryEntry:
     STATUS_REPLIED = 1
     STATUS_ERROR = 2 # ever used?
     STATUS_IGNORED = 3
+    STATUS_NO_REPLY_FOUND = 4
 
     def __init__(self, tw_id=0, reply_tw_id=0, time_nanos=0, status=0, reply=""):
         self.time_nanos = time_nanos
