@@ -100,6 +100,7 @@ class Twitter:
 
 		return items
 
+
 	def get_user_id(self, session: requests.session, user_name: str):
 
 		if user_name in self.user_ids:
@@ -112,7 +113,12 @@ class Twitter:
 		headers = self.common_headers.copy()
 
 		try:
-			ret = session.get(requrl, headers=headers, cookies=self.cookies)
+			while True:
+				ret = session.get(requrl, headers=headers, cookies=self.cookies)
+				if ret.status_code != 429: 
+					break
+				print("get_user_id hit a rate limit, sleeping")
+				time.sleep(60*(5 + random.randint(0, 15)))
 
 			if ret.status_code != 200:
 				return None
@@ -136,7 +142,9 @@ class Twitter:
 
 		user_id = self.get_user_id(session, username)
 		if user_id is None:
+			print("A")
 			return None
+		print(user_id)
 
 		params = {
 			"userId": str(user_id),
@@ -181,10 +189,16 @@ class Twitter:
 		headers['Referer'] = "https://twitter.com/" + username
 
 		try:
-			ret = session.get(requrl, headers=headers, cookies=self.cookies)
+			while True:
+				ret = session.get(requrl, headers=headers, cookies=self.cookies)
+
+				if ret.status_code != 429: 
+					break
+				print("get_user_recent_tweets hit a rate limit, sleeping")
+				time.sleep(60*(5 + random.randint(0, 15)))
 
 			if ret.status_code != 200:
-				print(ret, ret.status_code)
+				print(ret, ret.status_code, ret.text)
 				return None
 
 			js = ret.json()
@@ -252,7 +266,14 @@ class Twitter:
 			}
 
 		try:
-			ret = session.post(requrl, headers=headers, json=reqdata, cookies=self.cookies)
+			while True:
+				ret = session.post(requrl, headers=headers, json=reqdata, cookies=self.cookies)
+
+				if ret.status_code != 429: 
+					break
+				print("tweet hit a rate limit, sleeping")
+				time.sleep(60*(5 + random.randint(0, 15)))
+
 			if ret.status_code != 200:
 				print (ret.text)
 				return None
@@ -282,7 +303,14 @@ class Twitter:
 		headers = self.common_headers.copy()
 		headers['Referer'] = "https://twitter.com/"
 
-		init_result = session.post(req_uri_INIT, headers=headers, cookies=self.cookies)
+		while True:
+			init_result = session.post(req_uri_INIT, headers=headers, cookies=self.cookies)
+
+			if init_result.status_code != 429: 
+				break
+			print("upload_image hit a rate limit, sleeping")
+			time.sleep(60*(5 + random.randint(0, 15)))
+
 
 		if init_result.status_code // 100 != 2:
 			return None
@@ -307,7 +335,14 @@ class Twitter:
 				   image + \
 				   bytes(f"\r\n------WebKitFormBoundaryJar{boundary}--\r\n", 'utf-8')
 
-		append_result = session.post(req_uri_APPEND, headers=headers_post, cookies=self.cookies, data=img_data)
+		while True:
+			append_result = session.post(req_uri_APPEND, headers=headers_post, cookies=self.cookies, data=img_data)
+
+			if append_result.status_code != 429: 
+				break
+			print("upload_imag[2] hit a rate limit, sleeping")
+			time.sleep(60*(5 + random.randint(0, 15)))
+
 
 		if append_result.status_code // 100 != 2:
 			return None
@@ -316,7 +351,14 @@ class Twitter:
 
 		req_uri_FINALIZE = f"https://upload.twitter.com:443/i/media/upload.json?command=FINALIZE&media_id={media_id}"
 
-		finalize_result = session.post(req_uri_FINALIZE, headers=headers, cookies=self.cookies)
+		while True:
+			finalize_result = session.post(req_uri_FINALIZE, headers=headers, cookies=self.cookies)
+
+			if finalize_result.status_code != 429: 
+				break
+
+			print("upload_imag[3] hit a rate limit, sleeping")
+			time.sleep(60*(5 + random.randint(0, 15)))
 
 		if finalize_result.status_code // 100 != 2:
 			return None
